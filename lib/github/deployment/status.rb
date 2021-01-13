@@ -3,6 +3,16 @@
 require 'octokit'
 require 'optparse'
 
+stack = Faraday::RackBuilder.new do |builder|
+  builder.use Faraday::Request::Retry, exceptions: [Octokit::ServerError]
+  builder.use Octokit::Middleware::FollowRedirects
+  builder.use Octokit::Response::RaiseError
+  builder.use Octokit::Response::FeedParser
+  builder.response :logger
+  builder.adapter Faraday.default_adapter
+end
+Octokit.middleware = stack
+
 module Github
   module Deployment
     module Status
@@ -17,6 +27,7 @@ module Github
                                                  environment: @environment,
                                                  auto_merge: false,
                                                  required_contexts: [])
+          p deployment.inspect
           octokit.create_deployment_status(deployment[:url],
                                            'success',
                                            target_url: @target_url,
